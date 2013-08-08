@@ -24,4 +24,11 @@
     <string name="player">Player</string>
     <string name="tableTitle">Card Table</string>
     <string name="hand_text"/>
+    <string name="connect">Select a server from the list (if available)</string>
+    <string name="choose_port">Choose a port to listen for players</string>
+    <string name="port_radio_1">Port 80</string>
+    <string name="port_radio_3">Port 777</string>
+    <string name="port_radio_2">Port 123</string>
+    <string name="port_cancel">Cancel</string>
+    <string name="port_ok">Start Server</string>
 </resources>

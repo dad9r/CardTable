@@ -8,14 +8,8 @@ public class Card {
         Spades,
         Diamonds,
         Clubs,
-        Hearts;
-    };
-    public final String[] cardSuitName = {
-            "Spades",
-            "Diamonds",
-            "Clubs",
-            "Hearts"
-    };
+        Hearts
+    }
     public enum cardValue {
         Ace,
         Two,
@@ -29,26 +23,11 @@ public class Card {
         Ten,
         Jack,
         Queen,
-        King;
-    };
-    public final String[] cardValueName = {
-            "Ace",
-            "Two",
-            "Three",
-            "Four",
-            "Five",
-            "Six",
-            "Seven",
-            "Eight",
-            "Nine",
-            "Ten",
-            "Jack",
-            "Queen",
-            "King"
-    };
+        King
+    }
 
     public String toString() {
-        return cardValueName[value.ordinal()] + " of " + cardSuitName[suit.ordinal()];
+        return value.toString() + " of " + suit.toString();
     }
 
     private cardSuit suit;
@@ -65,6 +44,11 @@ public class Card {
     private Card() {
         suit = null;
         value = null;
+    }
+
+    public Card(int suit, int value) {
+        this.suit = cardSuit.values()[suit];
+        this.value = cardValue.values()[value];
     }
 
     public Card(cardSuit suit, cardValue value) {

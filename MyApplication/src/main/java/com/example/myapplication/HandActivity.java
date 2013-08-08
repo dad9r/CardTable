@@ -28,9 +28,12 @@ public class HandActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_hand);
 
-        table = null;
+        ConnectActivity.TableServerInfo serverInfo = (ConnectActivity.TableServerInfo) getIntent().getSerializableExtra("server");
+        table = new TableRPCSender(serverInfo);
+        if (table == null) finish();
+
+        setContentView(R.layout.activity_hand);
 
         textView = (TextView) findViewById(R.id.text_view);
         deal1Button = (Button) findViewById(R.id.deal_1_button);

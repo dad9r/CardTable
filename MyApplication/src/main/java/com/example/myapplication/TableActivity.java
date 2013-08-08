@@ -11,7 +11,6 @@ import android.widget.Button;
 public class TableActivity extends Activity {
 
     private CardDeck deck;
-    private int nextCard;
 
     private Button shuffleButton;
 
@@ -21,6 +20,8 @@ public class TableActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_table);
+
+        int port = getIntent().getIntExtra("port", 0);
 
         deck = new CardDeck();
 
@@ -33,11 +34,7 @@ public class TableActivity extends Activity {
             }
         });
 
-        receiver = new TableRPCReceiver(this);
-    }
-
-    public TableRPCReceiver getLocalServer() {
-        return receiver;
+        receiver = new TableRPCReceiver(this, port);
     }
 
     public Card getTopCard() throws CardDeck.DeckExhaustedException {
