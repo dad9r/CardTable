@@ -1,8 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-          android:text="@string/connect"
-          android:visibility="visible"
-          android:layout_width="fill_parent"
-          android:layout_height="wrap_content"
-          android:layout_centerInParent="true"
-          />
+<LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:visibility="visible"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="vertical"
+        >
+
+    <TextView
+        android:text="@string/connect"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:textSize="30sp" />
+
+    <EditText
+        android:id="@+id/connect_ip_text_box"
+        android:text="@string/ip_text"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"/>
+
+    <EditText
+        android:id="@+id/connect_port_text_box"
+        android:text="@string/port_text"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/connect_ok_button"
+        android:text="@string/connect_text"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"/>
+
+</LinearLayout>

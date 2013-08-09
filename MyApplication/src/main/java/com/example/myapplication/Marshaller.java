@@ -16,8 +16,8 @@ public class Marshaller {
     public static byte[] marshal(Marshaller.operationCode op, Card card) {
         return ByteBuffer.allocate(12)
                 .putInt(op.ordinal())
-                .putInt(card.getValue().ordinal())
                 .putInt(card.getSuit().ordinal())
+                .putInt(card.getValue().ordinal())
                 .array();
     }
 

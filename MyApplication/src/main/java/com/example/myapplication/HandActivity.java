@@ -7,6 +7,8 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.IOException;
+
 /**
  * Created by dad9r on 8/7/13.
  */
@@ -20,7 +22,7 @@ public class HandActivity extends Activity {
 
     private int nextCard;
 
-    private TableRPCIFace table;
+    private TableRPCSender table;
 
     private Button[] cards = new Button[handSize];
     private Card[] hand = new Card[handSize];
@@ -28,41 +30,49 @@ public class HandActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        ConnectActivity.TableServerInfo serverInfo = (ConnectActivity.TableServerInfo) getIntent().getSerializableExtra("server");
-        table = new TableRPCSender(serverInfo);
-        if (table == null) finish();
-
         setContentView(R.layout.activity_hand);
 
-        textView = (TextView) findViewById(R.id.text_view);
-        deal1Button = (Button) findViewById(R.id.deal_1_button);
-        dealHandButton = (Button) findViewById(R.id.deal_hand_button);
+        String ip = getIntent().getStringExtra("serverAddr");
+        String port = getIntent().getStringExtra("serverPort");
 
-        cards[0] = (Button) findViewById(R.id.card_button_1);
-        cards[1] = (Button) findViewById(R.id.card_button_2);
-        cards[2] = (Button) findViewById(R.id.card_button_3);
-        cards[3] = (Button) findViewById(R.id.card_button_4);
-        cards[4] = (Button) findViewById(R.id.card_button_5);
+        try {
+            table = new TableRPCSender(ip, port);
+            Thread tableThread = new Thread(table);
+            tableThread.start();
+        } catch (IOException e) {
+            Toast.makeText(this, "Cannot connect to host", Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+            finish();
+        }
+
+        textView = (TextView) findViewById(R.id.hand_text_view);
+        deal1Button = (Button) findViewById(R.id.hand_deal_1_button);
+        dealHandButton = (Button) findViewById(R.id.hand_deal_hand_button);
+
+        cards[0] = (Button) findViewById(R.id.hand_card_button_1);
+        cards[1] = (Button) findViewById(R.id.hand_card_button_2);
+        cards[2] = (Button) findViewById(R.id.hand_card_button_3);
+        cards[3] = (Button) findViewById(R.id.hand_card_button_4);
+        cards[4] = (Button) findViewById(R.id.hand_card_button_5);
         for (int i = 0; i < handSize; ++i) {
             cards[i].setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
                     int which;
                     switch (view.getId()) {
-                        case R.id.card_button_1:
+                        case R.id.hand_card_button_1:
                             which = 0;
                             break;
-                        case R.id.card_button_2:
+                        case R.id.hand_card_button_2:
                             which = 1;
                             break;
-                        case R.id.card_button_3:
+                        case R.id.hand_card_button_3:
                             which = 2;
                             break;
-                        case R.id.card_button_4:
+                        case R.id.hand_card_button_4:
                             which = 3;
                             break;
-                        case R.id.card_button_5:
+                        case R.id.hand_card_button_5:
                             which = 4;
                             break;
                         default:
@@ -107,16 +117,12 @@ public class HandActivity extends Activity {
     }
 
     private void dealOneCard() {
-        try {
-            Card card = table.draw();
-            textView.setText(card.toString());
-            cards[nextCard].setText(card.toString());
-            cards[nextCard].setVisibility(View.VISIBLE);
-            hand[nextCard] = card;
-            nextCard++;
-        } catch (CardDeck.DeckExhaustedException e) {
-            e.printStackTrace();
-        }
+        Card card = table.draw();
+        textView.setText(card.toString());
+        cards[nextCard].setText(card.toString());
+        cards[nextCard].setVisibility(View.VISIBLE);
+        hand[nextCard] = card;
+        nextCard++;
     }
 
     private void makeToast(String message) {
