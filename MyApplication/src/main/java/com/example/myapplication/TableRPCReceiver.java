@@ -6,9 +6,11 @@ import android.net.wifi.WifiManager;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.logging.Logger;
 
 /**
@@ -17,15 +19,15 @@ import java.util.logging.Logger;
 public class TableRPCReceiver implements TableRPCIFace {
 
     private static final int MAX_THREADS = 8;
+    private final int tenSeconds = 10000;
 
     private Logger log = Logger.getLogger("TableRPCReceiver");
 
     private TableActivity table;
     private SocketAcceptor acceptor;
-    private SocketListener[] listeners;
+    private ArrayList<SocketListener> listeners;
     private String ipAddress;
     private int port;
-    private int nextListener;
 
     public TableRPCReceiver(TableActivity tableActivity, int port) {
         this.port = port;
@@ -48,6 +50,11 @@ public class TableRPCReceiver implements TableRPCIFace {
         return table.getTopCard();
     }
 
+    public void terminate() {
+        acceptor.terminate();
+        table.finish();
+    }
+
     private class SocketAcceptor implements Runnable {
 
         private int port;
@@ -62,35 +69,39 @@ public class TableRPCReceiver implements TableRPCIFace {
             try {
                 log.info("Opening root socket");
                 socket = new ServerSocket(port);
-                nextListener = 0;
-                listeners = new SocketListener[MAX_THREADS];
+                listeners = new ArrayList<SocketListener>();
 
                 while (socket.isBound()) {
                     log.info("Thread waiting for connections");
                     Socket client = socket.accept();
                     log.info("Thread got a connection");
-                    if (nextListener < MAX_THREADS) {
+                    if (listeners.size() < MAX_THREADS) {
                         log.info("opening new listener thread");
-                        listeners[nextListener] = new SocketListener(client, nextListener);
-                        Thread clientThread = new Thread(listeners[nextListener++]);
+                        SocketListener newPlayer = new SocketListener(client);
+                        listeners.add(newPlayer);
+                        Thread clientThread = new Thread(newPlayer);
                         clientThread.start();
                         log.info("called start on listener, should be going");
                     }
                     else {
-                        // TODO: enable defrag, or garbage collection
                         log.info("No threads left for listener, closing connection");
                         client.close();
                     }
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                // socket error, usually, so terminate
+                TableRPCReceiver.this.terminate();
             }
         }
 
         public void terminate() {
             if (socket != null) {
+                while (!listeners.isEmpty()) {
+                    listeners.remove(0).terminate();
+                }
                 try {
                     socket.close();
+                    socket = null;
                     log.info("terminating acceptor thread");
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -121,27 +132,20 @@ public class TableRPCReceiver implements TableRPCIFace {
         return String.valueOf(port);
     }
 
-    public void terminate() {
-        acceptor.terminate();
-        for (int i = 0; i < MAX_THREADS; ++i) {
-            if (listeners[i] != null) {
-                listeners[i].terminate();
-            }
-        }
-    }
-
     private class SocketListener implements Runnable {
-        private int me;
         private Socket socket;
         private InputStream in;
         private OutputStream out;
+        private ArrayList<Card> playersCards;
 
-        public SocketListener(Socket socket, int me) {
+        public SocketListener(Socket socket) {
             this.socket = socket;
-            this.me = me;
             try {
                 in = socket.getInputStream();
                 out = socket.getOutputStream();
+                socket.setSoTimeout(tenSeconds);
+                socket.setKeepAlive(true);
+                playersCards = new ArrayList<Card>();
                 log.info("listener ready to run");
             } catch (IOException e) {
                 e.printStackTrace();
@@ -150,11 +154,24 @@ public class TableRPCReceiver implements TableRPCIFace {
 
         @Override
         public void run() {
-            log.info("Starting up listener thread " + me);
+            log.info("Starting up listener thread ");
             byte [] raw = new byte[12];
+            int timeouts = 0;
+            final int MAX_TIME_OUTS = 5; // 5 intervals of "timeout" seconds, timeout is set in constructor
             try {
-                while (in.read(raw) > 0) {
-                    log.info("Received request");
+                do {
+                    int howMuch = 0;
+                    try {
+                        howMuch = in.read(raw);
+                    }
+                    catch (InterruptedIOException e) {
+                        // socket timed out, the following tests will break or continue as needed
+                        timeouts++;
+                    }
+                    if (howMuch == -1 || !socket.isConnected() || socket.isOutputShutdown() || socket.isInputShutdown() || timeouts > MAX_TIME_OUTS) break;
+                    if (howMuch == 0) continue;
+
+                    timeouts = 0;
                     Marshaller.CardOperation request = Marshaller.unmarshall(raw);
                     switch (request.op) {
                         case DRAW:
@@ -163,6 +180,7 @@ public class TableRPCReceiver implements TableRPCIFace {
                                 Card result = draw();
                                 log.info("  Writing result");
                                 out.write(Marshaller.marshal(Marshaller.operationCode.DRAW, result));
+                                playersCards.add(result);
                             } catch (CardDeck.DeckExhaustedException e) {
                                 e.printStackTrace();
                                 log.info("  no card, writing error");
@@ -173,13 +191,19 @@ public class TableRPCReceiver implements TableRPCIFace {
 
                         case DISCARD:
                             log.info("Discarding");
-                            if (request.card != null) {
+                            if (request.card == null) {
+                                log.info("  no card, writing error");
+                                out.write(Marshaller.marshal(Marshaller.operationCode.ERROR));
+                            }
+                            else if (!playersCards.contains(request.card)) {
+                                log.info("  trying to return a card you don't have, writing error");
+                                out.write(Marshaller.marshal(Marshaller.operationCode.ERROR));
+                            }
+                            else {
                                 discard(request.card);
                                 log.info("  Writing result");
                                 out.write(Marshaller.marshal(Marshaller.operationCode.DISCARD));
-                            } else {
-                                log.info("  no card, writing error");
-                                out.write(Marshaller.marshal(Marshaller.operationCode.ERROR));
+                                playersCards.remove(request.card);
                             }
                             log.info("  done");
                             break;
@@ -190,12 +214,17 @@ public class TableRPCReceiver implements TableRPCIFace {
                             break;
                         case PLAY:
                             break;
+                        case PING:
+                            out.write(Marshaller.marshal(Marshaller.operationCode.PONG));
+                            break;
                         case ERROR:
                             log.info("  writing error");
                             out.write(Marshaller.marshal(Marshaller.operationCode.ERROR));
                             log.info("done");
+                            break;
                     }
-                }
+                } while (socket.isConnected());
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -203,15 +232,21 @@ public class TableRPCReceiver implements TableRPCIFace {
         }
 
         public void terminate() {
-            listeners[me] = null;
+            listeners.remove(this);
             try {
-                log.info("Closing listener socket " + me);
+                log.info("Closing listener socket ");
+                while (!playersCards.isEmpty()) {
+                    discard(playersCards.remove(0));
+                }
                 if (in != null) in.close();
                 if (out != null) out.close();
                 if (socket != null) socket.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            in = null;
+            out = null;
+            socket = null;
         }
     }
 }

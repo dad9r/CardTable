@@ -2,8 +2,8 @@ package com.example.myapplication;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.logging.Logger;
@@ -13,12 +13,13 @@ import java.util.logging.Logger;
  */
 public class TableRPCSender implements TableRPCIFace, Runnable {
 
+    private final int threeSeconds = 3000;
+    private final String ipAddress;
+    private final int port;
+
     private InputStream socketIn;
     private OutputStream socketOut;
     private Socket socket;
-
-    private String ipAddress;
-    private String port;
 
     private final Object senderLock = new Object();
     private byte[] senderData;
@@ -31,10 +32,13 @@ public class TableRPCSender implements TableRPCIFace, Runnable {
 
     public TableRPCSender(String ip, String port) throws IOException {
         this.ipAddress = ip;
-        this.port = port;
+        this.port = Integer.parseInt(port);
+
+        Thread tableThread = new Thread(this);
+        tableThread.start();
     }
 
-    public void terminate () {
+    public void requestTerminate() {
         synchronized (senderLock) {
             opPending = true;
             senderData = null;
@@ -48,18 +52,14 @@ public class TableRPCSender implements TableRPCIFace, Runnable {
             senderData = Marshaller.marshal(Marshaller.operationCode.DISCARD, card);
             opPending = true;
             opComplete = false;
-            log.info("waking thread");
             senderLock.notify();
 
             while (!opComplete) {
                 try {
-                    log.info("Caller Waiting");
                     senderLock.wait();
                 } catch (InterruptedException e) {
-                    log.info("Caller notified");
                 }
             }
-            log.info("Caller awake");
 
             senderData = null;
             resultData = null;
@@ -72,18 +72,14 @@ public class TableRPCSender implements TableRPCIFace, Runnable {
             senderData = Marshaller.marshal(Marshaller.operationCode.DRAW);
             opPending = true;
             opComplete = false;
-            log.info("waking thread");
             senderLock.notify();
 
             while (!opComplete) {
                 try {
-                    log.info("Caller Waiting");
                     senderLock.wait();
                 } catch (InterruptedException e) {
-                    log.info("Caller notified");
                 }
             }
-            log.info("Caller awake");
 
             Marshaller.CardOperation res = Marshaller.unmarshall(resultData);
             senderData = null;
@@ -95,28 +91,46 @@ public class TableRPCSender implements TableRPCIFace, Runnable {
         return null;
     }
 
+    public boolean stillConnected() {
+        return socket != null
+                && socket.isConnected()
+                && !socket.isInputShutdown()
+                && !socket.isOutputShutdown();
+    }
+
     @Override
     public void run() {
         try {
+            socket = new Socket(ipAddress, port);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (socket == null || !socket.isConnected()) {
+            log.info("Bad socket, not running");
+            return;
+        }
+
+        try {
             log.info("Sender thread is running");
-            InetAddress addr = InetAddress.getByName(ipAddress);
-            socket = new Socket(addr, Integer.parseInt(port));
+            socket.setSoTimeout(threeSeconds);
+            socket.setKeepAlive(true);
             socketIn = socket.getInputStream();
             socketOut = socket.getOutputStream();
 
             opPending = false;
 
             synchronized (senderLock) {
-                while (socket.isConnected()) {
+                while (stillConnected()) {
                     while (!opPending) {
                         try {
-                            log.info("Thread is Waiting");
-                            senderLock.wait();
+                            senderLock.wait(threeSeconds);
+                            if (!heartbeat()) {
+                                terminate();
+                                return;
+                            }
                         } catch (InterruptedException e) {
-                            log.info("Thread notified");
                         }
                     }
-                    log.info("Thread is awake");
 
                     if (senderData != null) {
                         send();
@@ -126,9 +140,6 @@ public class TableRPCSender implements TableRPCIFace, Runnable {
                         senderLock.notify();
                     }
                     else {
-                        socketIn.close();
-                        socketOut.close();
-                        socket.close();
                         senderLock.notifyAll();
                         break;
                     }
@@ -140,7 +151,54 @@ public class TableRPCSender implements TableRPCIFace, Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        log.info("Thread terminating");
+        terminate();
+    }
+
+    private boolean dead = false;
+    private void terminate() {
+        if (dead) return;
+        try {
+            log.info("Thread terminating");
+            if (socketIn != null) socketIn.close();
+            if (socketOut != null) socketOut.close();
+            if (socket != null) socket.close();
+            dead = true;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        socketIn = null;
+        socketOut = null;
+        socket = null;
+    }
+
+    private boolean heartbeat() {
+        if (socket == null ||
+                socket.isClosed() ||
+                socket.isOutputShutdown() ||
+                socket.isInputShutdown()) return false;
+
+        final int MAX_TIME_OUTS = 5; // 15 seconds
+        try {
+            socketOut.write(Marshaller.marshal(Marshaller.operationCode.PING));
+            resultData = new byte[12];
+            int res = 0;
+            int timeouts = 0;
+            do {
+                try {
+                    res = socketIn.read(resultData);
+                } catch (InterruptedIOException e) {
+                    // times out, could be dead
+                    timeouts++;
+                }
+            } while (res == 0 && timeouts < MAX_TIME_OUTS);
+
+            if (res > 0) {
+                return Marshaller.unmarshall(resultData).op.equals(Marshaller.operationCode.PONG);
+            }
+        } catch (IOException e) {
+            // something went wrong with the socket, so tell them the heartbeat failed
+        }
+        return false;
     }
 
     private int send() {
@@ -148,12 +206,20 @@ public class TableRPCSender implements TableRPCIFace, Runnable {
             log.info("Sending data");
             socketOut.write(senderData);
             resultData = new byte[12];
-            int res = socketIn.read(resultData);
-            log.info("Data transferred");
-            return res;
+            do {
+                try {
+                    int res = socketIn.read(resultData);
+                    log.info("Data transferred");
+                    return res;
+                } catch (InterruptedIOException e) {
+                    // read timed out, try again if still connected
+                    log.info("timed out");
+                }
+            } while (socket.isConnected() && !socket.isInputShutdown() && !socket.isOutputShutdown());
         } catch (IOException e) {
             e.printStackTrace();
         }
+        log.info("Sending data failed");
         return -1;
     }
 }

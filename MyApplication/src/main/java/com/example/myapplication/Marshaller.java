@@ -22,13 +22,15 @@ public class Marshaller {
     }
 
     public static CardOperation unmarshall(byte[] raw) {
+        if (raw == null)
+            return new CardOperation(operationCode.ERROR.ordinal());
+
         ByteBuffer buffer = ByteBuffer.wrap(raw);
         int op = buffer.getInt();
         if (buffer.hasRemaining()) {
             return new CardOperation(op, buffer.getInt(), buffer.getInt());
         }
         return new CardOperation(op);
-
     }
 
     public static class CardOperation {
@@ -52,6 +54,8 @@ public class Marshaller {
         SHUFFLE,
         QUIT,
         PLAY,
+        PING,
+        PONG,
         ERROR
     }
 }

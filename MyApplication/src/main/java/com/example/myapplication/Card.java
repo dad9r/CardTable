@@ -41,11 +41,6 @@ public class Card {
         return value;
     }
 
-    private Card() {
-        suit = null;
-        value = null;
-    }
-
     public Card(int suit, int value) {
         this.suit = cardSuit.values()[suit];
         this.value = cardValue.values()[value];
@@ -56,4 +51,10 @@ public class Card {
         this.value = value;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Card)) return false;
+        Card c = (Card) o;
+        return value.equals(c.getValue()) && suit.equals(c.getSuit());
+    }
 }

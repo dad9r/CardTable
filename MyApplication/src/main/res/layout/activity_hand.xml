@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
               xmlns:tools="http://schemas.android.com/tools"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
@@ -17,12 +17,14 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
+            android:layout_alignParentTop="true"
             />
 
     <RelativeLayout
             android:id="@+id/hand_button_frame"
             android:layout_height="wrap_content"
             android:layout_width="wrap_content"
+            android:layout_below="@+id/hand_text_view"
             >
 
         <Button
@@ -39,48 +41,23 @@
                 android:visibility="visible"
                 android:text="@string/deal_hand"
                 android:layout_toRightOf="@id/hand_deal_1_button"/>
-
     </RelativeLayout>
 
     <LinearLayout
             android:id="@+id/hand_card_frame"
-            android:layout_height="wrap_content"
+            android:layout_height="fill_parent"
             android:layout_width="wrap_content"
             android:orientation="vertical"
-            >
-        <Button
-                android:id="@+id/hand_card_button_1"
-                android:layout_height="wrap_content"
-                android:layout_width="wrap_content"
-                android:visibility="invisible"
-                android:text=""/>
+            android:layout_below="@+id/hand_button_frame"
+            />
 
-        <Button
-                android:id="@+id/hand_card_button_2"
-                android:layout_height="wrap_content"
-                android:layout_width="wrap_content"
-                android:visibility="invisible"
-                android:text=""/>
-        <Button
-                android:id="@+id/hand_card_button_3"
-                android:layout_height="wrap_content"
-                android:layout_width="wrap_content"
-                android:visibility="invisible"
-                android:text=""/>
-
-        <Button
-                android:id="@+id/hand_card_button_4"
-                android:layout_height="wrap_content"
-                android:layout_width="wrap_content"
-                android:visibility="invisible"
-                android:text=""/>
-        <Button
-                android:id="@+id/hand_card_button_5"
-                android:layout_height="wrap_content"
-                android:layout_width="wrap_content"
-                android:visibility="invisible"
-                android:text=""/>
-    </LinearLayout>
-
-</LinearLayout>
+    <Button
+            android:id="@+id/hand_quit_button"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="@string/quit"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentBottom="true"
+            />
+</RelativeLayout>
 

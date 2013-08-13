@@ -2,30 +2,33 @@ package com.example.myapplication;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Pair;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Random;
 
 /**
  * Created by dad9r on 8/7/13.
  */
 public class HandActivity extends Activity {
 
-    private final int handSize = 5;
+    private final int maxHandSize = 5;
+
+    private Random r = new Random();
 
     private TextView textView;
-    private Button deal1Button;
-    private Button dealHandButton;
-
-    private int nextCard;
+    private LinearLayout cardButtonFrame;
 
     private TableRPCSender table;
 
-    private Button[] cards = new Button[handSize];
-    private Card[] hand = new Card[handSize];
+    private ArrayList<Pair<Card, Button>> hand;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,70 +40,26 @@ public class HandActivity extends Activity {
 
         try {
             table = new TableRPCSender(ip, port);
-            Thread tableThread = new Thread(table);
-            tableThread.start();
         } catch (IOException e) {
             Toast.makeText(this, "Cannot connect to host", Toast.LENGTH_LONG).show();
             e.printStackTrace();
             finish();
         }
 
+        hand = new ArrayList<Pair<Card, Button>>();
+        cardButtonFrame = (LinearLayout) findViewById(R.id.hand_card_frame);
         textView = (TextView) findViewById(R.id.hand_text_view);
-        deal1Button = (Button) findViewById(R.id.hand_deal_1_button);
-        dealHandButton = (Button) findViewById(R.id.hand_deal_hand_button);
-
-        cards[0] = (Button) findViewById(R.id.hand_card_button_1);
-        cards[1] = (Button) findViewById(R.id.hand_card_button_2);
-        cards[2] = (Button) findViewById(R.id.hand_card_button_3);
-        cards[3] = (Button) findViewById(R.id.hand_card_button_4);
-        cards[4] = (Button) findViewById(R.id.hand_card_button_5);
-        for (int i = 0; i < handSize; ++i) {
-            cards[i].setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    int which;
-                    switch (view.getId()) {
-                        case R.id.hand_card_button_1:
-                            which = 0;
-                            break;
-                        case R.id.hand_card_button_2:
-                            which = 1;
-                            break;
-                        case R.id.hand_card_button_3:
-                            which = 2;
-                            break;
-                        case R.id.hand_card_button_4:
-                            which = 3;
-                            break;
-                        case R.id.hand_card_button_5:
-                            which = 4;
-                            break;
-                        default:
-                            // impossible, currently
-                            which = -1;
-                    }
-                    table.discard(hand[which]);
-                    nextCard--;
-                    for (int i = which; i < nextCard; ++i) {
-                        hand[i] = hand[i+1];
-                        cards[i].setText(cards[i+1].getText());
-                    }
-                    hand[nextCard] = null;
-                    cards[nextCard].setText("");
-                    cards[nextCard].setVisibility(View.INVISIBLE);
-                }
-            });
-        }
-        nextCard = 0;
+        Button deal1Button = (Button) findViewById(R.id.hand_deal_1_button);
+        Button dealHandButton = (Button) findViewById(R.id.hand_deal_hand_button);
+        Button quitButton = (Button) findViewById(R.id.hand_quit_button);
 
         deal1Button.setOnClickListener(new View.OnClickListener() {
-
             @Override
             public void onClick(View v) {
-                if (nextCard < handSize) {
+                quitListener.reset();
+                if (hand.size() < maxHandSize) {
                     dealOneCard();
-                }
-                else {
+                } else {
                     makeToast("Full hand");
                 }
             }
@@ -109,20 +68,87 @@ public class HandActivity extends Activity {
         dealHandButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                while (nextCard < handSize) {
+                quitListener.reset();
+                while (hand.size() < maxHandSize) {
                     dealOneCard();
                 }
             }
         });
+
+        quitButton.setOnClickListener(quitListener);
     }
 
+    class QuitListener implements View.OnClickListener {
+        private boolean verify = false;
+
+        public void reset() {
+            verify = false;
+        }
+
+        @Override
+        public void onClick(View view) {
+            if (verify) {
+                while (hand.size() > 0) {
+                    table.discard(hand.remove(0).first);
+                }
+                table.requestTerminate();
+                finish();
+            }
+            else {
+                makeToast("Are you sure? Press the quit button again to drop out of the game");
+                verify = true;
+            }
+        }
+    }
+    private QuitListener quitListener = new QuitListener();
+
+    private View.OnClickListener cardButtonListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            quitListener.reset();
+            if (!table.stillConnected()) {
+                makeToast("Lost connection to table, shutting down");
+                table.requestTerminate();
+                finish();
+            }
+            else {
+                Pair<Card, Button> which = null;
+                for (Pair<Card, Button> p : hand) {
+                    if (p.second.getId() == view.getId()) {
+                        which = p;
+                    }
+                }
+                if (which != null) {
+                    hand.remove(which);
+                    table.discard(which.first);
+                    cardButtonFrame.removeView(which.second);
+                }
+            }
+        }
+    };
+
     private void dealOneCard() {
-        Card card = table.draw();
-        textView.setText(card.toString());
-        cards[nextCard].setText(card.toString());
-        cards[nextCard].setVisibility(View.VISIBLE);
-        hand[nextCard] = card;
-        nextCard++;
+        if (!table.stillConnected()) {
+            makeToast("Lost connection to table, shutting down");
+            table.requestTerminate();
+            finish();
+        }
+        else {
+            Card card = table.draw();
+            textView.setText(card.toString());
+
+            Button newButton = new Button(this);
+            LinearLayout.LayoutParams newButtonParams =
+                    new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+
+            newButton.setId(r.nextInt());
+            newButton.setText(card.toString());
+            newButton.setVisibility(View.VISIBLE);
+            newButton.setOnClickListener(cardButtonListener);
+
+            cardButtonFrame.addView(newButton, newButtonParams);
+            hand.add(new Pair<Card, Button>(card, newButton));
+        }
     }
 
     private void makeToast(String message) {
