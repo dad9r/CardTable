@@ -3,8 +3,13 @@ package com.example.myapplication;
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Pair;
+import android.view.ContextMenu;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -102,31 +107,6 @@ public class HandActivity extends Activity {
     }
     private QuitListener quitListener = new QuitListener();
 
-    private View.OnClickListener cardButtonListener = new View.OnClickListener() {
-        @Override
-        public void onClick(View view) {
-            quitListener.reset();
-            if (!table.stillConnected()) {
-                makeToast("Lost connection to table, shutting down");
-                table.requestTerminate();
-                finish();
-            }
-            else {
-                Pair<Card, Button> which = null;
-                for (Pair<Card, Button> p : hand) {
-                    if (p.second.getId() == view.getId()) {
-                        which = p;
-                    }
-                }
-                if (which != null) {
-                    hand.remove(which);
-                    table.discard(which.first);
-                    cardButtonFrame.removeView(which.second);
-                }
-            }
-        }
-    };
-
     private void dealOneCard() {
         if (!table.stillConnected()) {
             makeToast("Lost connection to table, shutting down");
@@ -144,11 +124,57 @@ public class HandActivity extends Activity {
             newButton.setId(r.nextInt());
             newButton.setText(card.toString());
             newButton.setVisibility(View.VISIBLE);
-            newButton.setOnClickListener(cardButtonListener);
+            newButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    HandActivity.this.openContextMenu(view);
+                }
+            });
+            registerForContextMenu(newButton);
 
             cardButtonFrame.addView(newButton, newButtonParams);
             hand.add(new Pair<Card, Button>(card, newButton));
         }
+    }
+
+    private Pair<Card, Button> clicked;
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+
+        for (Pair<Card, Button> p : hand) {
+            if (p.second.getId() == v.getId()) {
+                clicked = p;
+            }
+        }
+
+        if (clicked != null) {
+            MenuInflater inflater = getMenuInflater();
+            inflater.inflate(R.menu.menu_hand, menu);
+        }
+    }
+
+    @Override
+    public void onContextMenuClosed(Menu menu) {
+        super.onContextMenuClosed(menu);
+        clicked = null;
+    }
+
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.hand_context_menu_discard:
+                hand.remove(clicked);
+                table.discard(clicked.first);
+                cardButtonFrame.removeView(clicked.second);
+                clicked = null;
+                break;
+            case R.id.hand_context_menu_pass:
+            case R.id.hand_context_menu_play:
+            default:
+                return super.onContextItemSelected(item);
+        }
+        return true;
     }
 
     private void makeToast(String message) {

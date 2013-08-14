@@ -1,13 +1,8 @@
 package com.example.myapplication;
 
-import android.annotation.TargetApi;
-import android.os.Build;
-import android.util.Pair;
-
-import java.security.InvalidParameterException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Queue;
+import java.util.Collection;
 import java.util.Random;
 
 /**
@@ -48,7 +43,7 @@ public class CardDeck {
     }
 
     public Card getTopCard() throws DeckExhaustedException {
-        Card result = null;
+        Card result;
         if (numCardsInDeck() > 0) {
             result = cardsInDeck.getFirst();
             cardsInDeck.remove(result);
@@ -82,12 +77,15 @@ public class CardDeck {
         cardsInDeck.addLast(card);
     }
 
+    public void insertPileBottom(Collection<Card> cards) {
+        cardsInDeck.addAll(cards);
+    }
+
     private void initializeDeck() {
         if (cardsInDeck == null) {
             cardsInDeck = new ArrayDeque<Card>(maxCardsInDeck);
         }
 
-        int i = 0;
         for (Card.cardSuit suit : Card.cardSuit.values()) {
             for (Card.cardValue value : Card.cardValue.values()) {
                 cardsInDeck.add(new Card(suit, value));

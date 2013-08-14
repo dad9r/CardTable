@@ -55,7 +55,7 @@
             android:id="@+id/hand_quit_button"
             android:layout_height="wrap_content"
             android:layout_width="wrap_content"
-            android:text="@string/quit"
+            android:text="@string/player_quit"
             android:layout_alignParentRight="true"
             android:layout_alignParentBottom="true"
             />

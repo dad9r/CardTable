@@ -21,7 +21,9 @@ public class TableRPCSender implements TableRPCIFace, Runnable {
     private OutputStream socketOut;
     private Socket socket;
 
+    private final Object startLock = new Object();
     private final Object senderLock = new Object();
+
     private byte[] senderData;
     private byte[] resultData;
 
@@ -34,8 +36,17 @@ public class TableRPCSender implements TableRPCIFace, Runnable {
         this.ipAddress = ip;
         this.port = Integer.parseInt(port);
 
-        Thread tableThread = new Thread(this);
-        tableThread.start();
+        synchronized (startLock) {
+            Thread tableThread = new Thread(this);
+            tableThread.start();
+            try {
+                startLock.wait();
+            } catch (InterruptedException e) {
+            }
+
+            if (!stillConnected())
+                throw new IOException("Couldn't connect, not running");
+        }
     }
 
     public void requestTerminate() {
@@ -100,10 +111,15 @@ public class TableRPCSender implements TableRPCIFace, Runnable {
 
     @Override
     public void run() {
-        try {
-            socket = new Socket(ipAddress, port);
-        } catch (IOException e) {
-            e.printStackTrace();
+        synchronized (startLock) {
+            try {
+                socket = new Socket(ipAddress, port);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            finally {
+                startLock.notify();
+            }
         }
         if (socket == null || !socket.isConnected()) {
             log.info("Bad socket, not running");

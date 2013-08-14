@@ -15,25 +15,30 @@
   limitations under the License.
   -->
 <resources>
-    <string name="app_name">MySolitaire</string>
+    <string name="app_name">CardTable</string>
     <string name="choice">Is this a player or a server?</string>
-    <string name="deal_1">Deal 1 Card</string>
-    <string name="deal_hand">Deal Full Hand</string>
-    <string name="shuffle">Shuffle Deck</string>
-    <string name="server">Server Only</string>
-    <string name="player">Player</string>
+    <string name="deal_1">Draw 1 Card</string>
+    <string name="deal_hand">Draw Full Hand</string>
+    <string name="deck">Deck</string>
+    <string name="server">Table Server</string>
+    <string name="player">Local Player</string>
     <string name="table_title">Card Table</string>
     <string name="connect">Input IP Address and Port for Table</string>
     <string name="choose_port">Choose a port to listen for players</string>
     <string name="port_radio_1">Port 18080</string>
-    <string name="port_radio_3">Port 18777</string>
     <string name="port_radio_2">Port 18123</string>
+    <string name="port_radio_3">Port 18777</string>
     <string name="port_cancel">Cancel</string>
     <string name="port_ok">Start Server</string>
-    <string name="ip_text"></string>
-    <string name="port_text"></string>
     <string name="connect_text">Connect</string>
-    <string name="quit">End Game</string>
+    <string name="server_quit">End Game</string>
+    <string name="player_quit">Leave Game</string>
     <string name="ip_info_default">IP: Port:</string>
     <string name="hand_text"/>
+    <string name="ip_text"/>
+    <string name="port_text"/>
+    <string name="discard">Discard</string>
+    <string name="play">Play card</string>
+    <string name="pass">Pass card</string>
+
 </resources>

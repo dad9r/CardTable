@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
               xmlns:tools="http://schemas.android.com/tools"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
@@ -24,7 +24,6 @@
             android:layout_width="wrap_content"
             android:layout_weight="2"
             android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
             />
 
         <TextView
@@ -34,7 +33,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="2"
-            android:layout_centerInParent="true"
             />
     </LinearLayout>
 
@@ -42,26 +40,37 @@
         android:id="@+id/table_button_frame"
         android:layout_height="wrap_content"
         android:layout_width="fill_parent"
+        android:layout_below="@+id/table_text_frame"
         android:orientation="horizontal"
         >
 
         <Button
-            android:id="@+id/table_shuffle_button"
+            android:id="@+id/table_deck_button"
             android:layout_height="wrap_content"
             android:layout_width="wrap_content"
             android:layout_weight="2"
             android:visibility="visible"
-            android:text="@string/shuffle"/>
+            android:text="@string/deck"/>
 
         <Button
-            android:id="@+id/table_quit_button"
+            android:id="@+id/table_discard_button"
             android:layout_height="wrap_content"
             android:layout_width="wrap_content"
             android:layout_weight="2"
             android:visibility="visible"
-            android:text="@string/quit"/>
+            android:text="@string/discard"/>
 
     </LinearLayout>
 
-</LinearLayout>
+    <Button
+            android:id="@+id/table_quit_button"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:visibility="visible"
+            android:text="@string/server_quit"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentBottom="true"
+            />
+
+</RelativeLayout>
 

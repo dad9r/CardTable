@@ -43,7 +43,7 @@ public class TableRPCReceiver implements TableRPCIFace {
     }
 
     public void discard(Card card) {
-        table.insertCardBottom(card);
+        table.addToDiscard(card);
     }
 
     public Card draw() throws CardDeck.DeckExhaustedException {
@@ -209,14 +209,22 @@ public class TableRPCReceiver implements TableRPCIFace {
                             break;
 
                         case SHUFFLE:
+                            log.info("Shuffling deck");
+                            table.shuffle();
+                            log.info("  Writing result");
+                            out.write(Marshaller.marshal(Marshaller.operationCode.SHUFFLE));
                             break;
+
                         case QUIT:
                             break;
+
                         case PLAY:
                             break;
+
                         case PING:
                             out.write(Marshaller.marshal(Marshaller.operationCode.PONG));
                             break;
+
                         case ERROR:
                             log.info("  writing error");
                             out.write(Marshaller.marshal(Marshaller.operationCode.ERROR));
